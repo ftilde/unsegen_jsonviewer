@@ -7,5 +7,6 @@ authors = ["ftilde <ftilde@protonmail.com>"]
 json = "0.11"
 
 [dependencies.unsegen]
-git = "https://github.com/ftilde/unsegen"
+#git = "https://github.com/ftilde/unsegen"
 #path = "../unsegen"
+version = "0.0.1"

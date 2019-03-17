@@ -3,6 +3,13 @@ name = "unsegen_jsonviewer"
 version = "0.0.1"
 authors = ["ftilde <ftilde@protonmail.com>"]
 
+description = "An unsegen widget for viewing structured data (json)"
+documentation = "https://docs.rs/unsegen_jsonviewer"
+repository = "https://github.com/ftilde/unsegen_jsonviewer"
+readme = "README.md"
+license-file = "LICENSE"
+keywords = ["terminal", "tui", "json"]
+
 [dependencies]
 json = "0.11"
 

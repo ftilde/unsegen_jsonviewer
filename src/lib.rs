@@ -83,6 +83,7 @@ mod path;
 
 use self::displayvalue::*;
 use self::path::*;
+use std::borrow::Borrow;
 
 /// A widget for viewing `json` data.
 ///
@@ -108,9 +109,9 @@ impl JsonViewer {
     ///
     /// It follows that it is impossible to not have content. However, it *is* possible to show an
     /// empty String, so there is that.
-    pub fn new(value: impl AsRef<JsonValue>) -> Self {
+    pub fn new(value: impl Borrow<JsonValue>) -> Self {
         let mut res = JsonViewer {
-            value: DisplayValue::from_json(value.as_ref()),
+            value: DisplayValue::from_json(value.borrow()),
             active_element: Path::Scalar, //Will be fixed ...
             indentation: Width::new(2).unwrap(),
             active_focused_style: StyleModifier::new()
@@ -124,15 +125,15 @@ impl JsonViewer {
     }
 
     /// Set a new value to display and do not highlight any changes (in contrast to `update`).
-    pub fn reset(&mut self, value: impl AsRef<JsonValue>) {
-        self.value = DisplayValue::from_json(value.as_ref());
+    pub fn reset(&mut self, value: impl Borrow<JsonValue>) {
+        self.value = DisplayValue::from_json(value.borrow());
         self.fix_active_element_path();
     }
 
     /// Set a new value to display and highlight changes from the previous value (which will be
     /// shown until the next `update` or `reset`.
-    pub fn update(&mut self, value: impl AsRef<JsonValue>) {
-        self.value = self.value.update(value.as_ref());
+    pub fn update(&mut self, value: impl Borrow<JsonValue>) {
+        self.value = self.value.update(value.borrow());
         self.fix_active_element_path();
     }
 

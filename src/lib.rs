@@ -17,7 +17,7 @@
 //!     let stdin = stdin();
 //!     let stdin = stdin.lock();
 //!
-//!     let mut json_viewer = JsonViewer::new(&JsonValue::Null);
+//!     let mut json_viewer = JsonViewer::new(JsonValue::Null);
 //!
 //!     let mut term = Terminal::new(stdout.lock());
 //!
@@ -37,14 +37,14 @@
 //!                 let mut object = Object::new();
 //!                 object.insert("foo", JsonValue::String("String!".to_owned()));
 //!                 object.insert("bar", JsonValue::Boolean(true));
-//!                 json_viewer.update(&JsonValue::Object(object));
+//!                 json_viewer.update(JsonValue::Object(object));
 //!             }))
 //!             .chain((Key::Char('n'), || {
 //!                 let mut object = Object::new();
 //!                 object.insert("foo", JsonValue::Number((27 * 37).into()));
 //!                 object.insert("bar", JsonValue::Boolean(true));
 //!                 // Notice that foo is highlighted when pressing 'n' after 's'!
-//!                 json_viewer.update(&JsonValue::Object(object));
+//!                 json_viewer.update(JsonValue::Object(object));
 //!             }));
 //!         // Put more application logic here...
 //!
@@ -108,9 +108,9 @@ impl JsonViewer {
     ///
     /// It follows that it is impossible to not have content. However, it *is* possible to show an
     /// empty String, so there is that.
-    pub fn new(value: &JsonValue) -> Self {
+    pub fn new(value: impl AsRef<JsonValue>) -> Self {
         let mut res = JsonViewer {
-            value: DisplayValue::from_json(&value),
+            value: DisplayValue::from_json(value.as_ref()),
             active_element: Path::Scalar, //Will be fixed ...
             indentation: Width::new(2).unwrap(),
             active_focused_style: StyleModifier::new()
@@ -124,15 +124,15 @@ impl JsonViewer {
     }
 
     /// Set a new value to display and do not highlight any changes (in contrast to `update`).
-    pub fn reset(&mut self, value: &JsonValue) {
-        self.value = DisplayValue::from_json(value);
+    pub fn reset(&mut self, value: impl AsRef<JsonValue>) {
+        self.value = DisplayValue::from_json(value.as_ref());
         self.fix_active_element_path();
     }
 
     /// Set a new value to display and highlight changes from the previous value (which will be
     /// shown until the next `update` or `reset`.
-    pub fn update(&mut self, value: &JsonValue) {
-        self.value = self.value.update(value);
+    pub fn update(&mut self, value: impl AsRef<JsonValue>) {
+        self.value = self.value.update(value.as_ref());
         self.fix_active_element_path();
     }
 

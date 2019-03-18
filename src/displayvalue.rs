@@ -41,14 +41,14 @@ impl DisplayObject {
         self.extended ^= true;
     }
 
-    fn replace(&self, obj: &Object) -> Self {
+    fn update(&self, obj: &Object) -> Self {
         let mut result = DisplayObject {
             members: BTreeMap::new(),
             extended: self.extended,
         };
         for (key, value) in obj.iter() {
             let new_value = if let Some(old_val) = self.members.get(key) {
-                old_val.replace(value)
+                old_val.update(value)
             } else {
                 DisplayValue::from_json(value)
             };
@@ -148,7 +148,7 @@ impl DisplayArray {
         self.num_extended > 0
     }
 
-    fn replace(&self, values: &Vec<JsonValue>) -> Self {
+    fn update(&self, values: &Vec<JsonValue>) -> Self {
         let mut result = DisplayArray {
             values: Vec::new(),
             extended: self.extended,
@@ -158,7 +158,7 @@ impl DisplayArray {
 
         let num_old_values = min(self.values.len(), values.len());
         for (value, old_val) in values[..num_old_values].iter().zip(self.values.iter()) {
-            result.values.push(old_val.replace(value));
+            result.values.push(old_val.update(value));
         }
         for value in values[num_old_values..].iter() {
             result.values.push(DisplayValue::from_json(value));
@@ -265,7 +265,7 @@ pub struct DisplayScalar {
 }
 
 impl DisplayScalar {
-    fn replace<S: ToString>(&self, value: &S) -> Self {
+    fn update<S: ToString>(&self, value: &S) -> Self {
         let new_value = value.to_string();
         let changed = self.value != new_value;
         DisplayScalar {
@@ -300,28 +300,28 @@ pub enum DisplayValue {
 }
 
 impl DisplayValue {
-    pub fn replace(&self, value: &JsonValue) -> Self {
+    pub fn update(&self, value: &JsonValue) -> Self {
         match (self, value) {
             (&DisplayValue::Scalar(ref scalar), &JsonValue::Null) => {
-                DisplayValue::Scalar(scalar.replace(&JsonValue::Null))
+                DisplayValue::Scalar(scalar.update(&JsonValue::Null))
             }
             (&DisplayValue::Scalar(ref scalar), &JsonValue::Short(ref val)) => {
-                DisplayValue::Scalar(scalar.replace(&val))
+                DisplayValue::Scalar(scalar.update(&val))
             }
             (&DisplayValue::Scalar(ref scalar), &JsonValue::String(ref val)) => {
-                DisplayValue::Scalar(scalar.replace(&val))
+                DisplayValue::Scalar(scalar.update(&val))
             }
             (&DisplayValue::Scalar(ref scalar), &JsonValue::Number(ref val)) => {
-                DisplayValue::Scalar(scalar.replace(&val))
+                DisplayValue::Scalar(scalar.update(&val))
             }
             (&DisplayValue::Scalar(ref scalar), &JsonValue::Boolean(ref val)) => {
-                DisplayValue::Scalar(scalar.replace(&val))
+                DisplayValue::Scalar(scalar.update(&val))
             }
             (&DisplayValue::Object(ref obj), &JsonValue::Object(ref val)) => {
-                DisplayValue::Object(obj.replace(&val))
+                DisplayValue::Object(obj.update(&val))
             }
             (&DisplayValue::Array(ref array), &JsonValue::Array(ref val)) => {
-                DisplayValue::Array(array.replace(&val))
+                DisplayValue::Array(array.update(&val))
             }
             (_, val) => Self::from_json(val),
         }

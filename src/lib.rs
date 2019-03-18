@@ -87,7 +87,7 @@ use std::borrow::Borrow;
 
 /// A widget for viewing `json` data.
 ///
-/// Set an initial value during construction (via `new) and replace it either using `update` or `reset`.
+/// Set an initial value during construction (via `new`) and replace it either using `update` or `reset`.
 ///
 /// The widgets provides multiple interaction points, for example to fold or unfold structures, or
 /// to grow or shrink the number of elements shown of an array. At any time, one of these knobs is

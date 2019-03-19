@@ -11,6 +11,10 @@ At the moment it only supports [`json`](https://crates.io/crates/json) values.
 unsegen_jsonviewer = "0.0.1"
 ```
 
+## Screenshots
+
+![](screenshot.png)
+
 ## Examples
 
 There is an example at the root of the crate [documentation](https://docs.rs/unsegen_jsonviewer) which should be sufficient to get you going.

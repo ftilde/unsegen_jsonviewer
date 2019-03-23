@@ -1,5 +1,9 @@
 # unsegen_jsonviewer
 
+[![](https://img.shields.io/crates/v/unsegen_jsonviewer.svg)](https://crates.io/crates/unsegen_jsonviewer/)
+[![](https://docs.rs/unsegen_jsonviewer/badge.svg)](https://docs.rs/unsegen_jsonviewer/)
+[![](https://img.shields.io/crates/l/unsegen_jsonviewer.svg)]()
+
 `unsegen_jsonviewer` provides a jsonviewer widget for [unsegen](https://crates.io/crates/unsegen) for visualizing and interacting with structured, but dynamic data.
 At the moment it only supports [`json`](https://crates.io/crates/json) values.
 

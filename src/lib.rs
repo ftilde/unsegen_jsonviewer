@@ -19,7 +19,7 @@
 //!
 //!     let mut json_viewer = JsonViewer::new(JsonValue::Null);
 //!
-//!     let mut term = Terminal::new(stdout.lock());
+//!     let mut term = Terminal::new(stdout.lock()).unwrap();
 //!
 //!     for input in Input::read_all(stdin) {
 //!         let input = input.unwrap();

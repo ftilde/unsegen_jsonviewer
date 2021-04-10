@@ -98,10 +98,6 @@ use std::borrow::Borrow;
 pub struct JsonViewer {
     value: DisplayValue,
     active_element: Path,
-    indentation: Width,
-    active_focused_style: StyleModifier,
-    inactive_focused_style: StyleModifier,
-    item_changed_style: StyleModifier,
 }
 
 impl JsonViewer {
@@ -113,12 +109,6 @@ impl JsonViewer {
         let mut res = JsonViewer {
             value: DisplayValue::from_json(value.borrow()),
             active_element: Path::Scalar, //Will be fixed ...
-            indentation: Width::new(2).unwrap(),
-            active_focused_style: StyleModifier::new()
-                .invert(BoolModifyMode::Toggle)
-                .bold(true),
-            inactive_focused_style: StyleModifier::new().bold(true),
-            item_changed_style: StyleModifier::new().bg_color(Color::Red),
         };
         res.fix_active_element_path(); //... here!
         res
@@ -170,9 +160,48 @@ impl JsonViewer {
         self.fix_active_element_path();
         res
     }
+
+    pub fn as_widget<'a>(&'a self) -> JsonViewerWidget<'a> {
+        JsonViewerWidget {
+            inner: self,
+            indentation: Width::new(2).unwrap(),
+            active_focused_style: StyleModifier::new()
+                .invert(BoolModifyMode::Toggle)
+                .bold(true),
+            inactive_focused_style: StyleModifier::new().bold(true),
+            item_changed_style: StyleModifier::new().bg_color(Color::Red),
+        }
+    }
 }
 
-impl Widget for JsonViewer {
+pub struct JsonViewerWidget<'a> {
+    inner: &'a JsonViewer,
+    indentation: Width,
+    active_focused_style: StyleModifier,
+    inactive_focused_style: StyleModifier,
+    item_changed_style: StyleModifier,
+}
+
+impl<'a> JsonViewerWidget<'a> {
+    pub fn indentation(mut self, w: Width) -> Self {
+        self.indentation = w;
+        self
+    }
+    pub fn active_focused(mut self, style: StyleModifier) -> Self {
+        self.active_focused_style = style;
+        self
+    }
+    pub fn inactive_focused(mut self, style: StyleModifier) -> Self {
+        self.inactive_focused_style = style;
+        self
+    }
+    pub fn item_changed(mut self, style: StyleModifier) -> Self {
+        self.item_changed_style = style;
+        self
+    }
+}
+
+impl<'a> Widget for JsonViewerWidget<'a> {
     fn space_demand(&self) -> Demand2D {
         let mut window = ExtentEstimationWindow::unbounded();
         //TODO: We may want to consider passing hints to space_demand as well for an accurate estimate
@@ -184,9 +213,9 @@ impl Widget for JsonViewer {
                 inactive_focused_style: self.inactive_focused_style,
                 item_changed_style: self.item_changed_style,
             };
-            self.value.draw(
+            self.inner.value.draw(
                 &mut cursor,
-                Some(&self.active_element),
+                Some(&self.inner.active_element),
                 &info,
                 self.indentation,
             );
@@ -204,9 +233,9 @@ impl Widget for JsonViewer {
             inactive_focused_style: self.inactive_focused_style,
             item_changed_style: self.item_changed_style,
         };
-        self.value.draw(
+        self.inner.value.draw(
             &mut cursor,
-            Some(&self.active_element),
+            Some(&self.inner.active_element),
             &info,
             self.indentation,
         );

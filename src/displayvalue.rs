@@ -3,9 +3,7 @@ use unsegen::base::basic_types::*;
 use unsegen::base::{Cursor, CursorTarget, StyleModifier};
 use unsegen::widget::RenderingHints;
 
-use json::JsonValue;
-
-use json::object::Object;
+use crate::{Value, ValueVariant};
 
 use std::cmp::min;
 
@@ -41,31 +39,36 @@ impl DisplayObject {
         self.extended ^= true;
     }
 
-    fn update(&self, obj: &Object) -> Self {
+    fn update<'children>(
+        &self,
+        obj: Box<dyn Iterator<Item = (String, &'children dyn Value)> + 'children>,
+    ) -> Self {
         let mut result = DisplayObject {
             members: BTreeMap::new(),
             extended: self.extended,
         };
-        for (key, value) in obj.iter() {
-            let new_value = if let Some(old_val) = self.members.get(key) {
+        for (key, value) in obj.into_iter() {
+            let new_value = if let Some(old_val) = self.members.get(&key) {
                 old_val.update(value)
             } else {
-                DisplayValue::from_json(value)
+                DisplayValue::new(value)
             };
             result.members.insert(key.to_string(), new_value);
         }
         result
     }
 
-    fn from_json(obj: &Object) -> Self {
+    fn new<'children>(
+        obj: Box<dyn Iterator<Item = (String, &'children dyn Value)> + 'children>,
+    ) -> Self {
         let mut result = DisplayObject {
             members: BTreeMap::new(),
             extended: true,
         };
-        for (key, value) in obj.iter() {
+        for (key, value) in obj.into_iter() {
             result
                 .members
-                .insert(key.to_string(), DisplayValue::from_json(value));
+                .insert(key.to_string(), DisplayValue::new(value));
         }
         result
     }
@@ -148,35 +151,43 @@ impl DisplayArray {
         self.num_extended > 0
     }
 
-    fn update(&self, values: &Vec<JsonValue>) -> Self {
-        let mut result = DisplayArray {
+    fn update<'children>(
+        &self,
+        values: Box<dyn Iterator<Item = &'children dyn Value> + 'children>,
+    ) -> Self {
+        let mut old_vals = self.values.iter();
+        let values = values
+            .into_iter()
+            .map(|value| {
+                if let Some(old_val) = old_vals.next() {
+                    old_val.update(value)
+                } else {
+                    DisplayValue::new(value)
+                }
+            })
+            .collect::<Vec<_>>();
+        let num_extended = min(self.num_extended, values.len());
+        let length_changed = self.values.len() != values.len();
+        DisplayArray {
             values: Vec::new(),
             extended: self.extended,
-            num_extended: min(self.num_extended, values.len()),
-            length_changed: self.values.len() != values.len(),
-        };
-
-        let num_old_values = min(self.values.len(), values.len());
-        for (value, old_val) in values[..num_old_values].iter().zip(self.values.iter()) {
-            result.values.push(old_val.update(value));
+            num_extended,
+            length_changed,
         }
-        for value in values[num_old_values..].iter() {
-            result.values.push(DisplayValue::from_json(value));
-        }
-        result
     }
 
-    fn from_json(values: &Vec<JsonValue>) -> Self {
-        let mut result = DisplayArray {
-            values: Vec::new(),
+    fn new<'children>(values: Box<dyn Iterator<Item = &'children dyn Value> + 'children>) -> Self {
+        let values = values
+            .into_iter()
+            .map(DisplayValue::new)
+            .collect::<Vec<_>>();
+        let num_extended = min(3, values.len());
+        DisplayArray {
+            values,
             extended: true,
-            num_extended: min(3, values.len()),
+            num_extended,
             length_changed: false,
-        };
-        for value in values {
-            result.values.push(DisplayValue::from_json(value));
         }
-        result
     }
 
     fn draw<T: CursorTarget>(
@@ -258,25 +269,23 @@ impl DisplayArray {
     }
 }
 
-//TODO: we may want to support other types, but I'm not sure if that is necessary
 pub struct DisplayScalar {
     pub value: String,
     pub changed: bool,
 }
 
 impl DisplayScalar {
-    fn update<S: ToString>(&self, value: &S) -> Self {
-        let new_value = value.to_string();
+    fn update(&self, new_value: String) -> Self {
         let changed = self.value != new_value;
         DisplayScalar {
             value: new_value,
-            changed: changed,
+            changed,
         }
     }
 
-    fn from_json<S: ToString>(value: &S) -> Self {
+    fn new(value: String) -> Self {
         DisplayScalar {
-            value: value.to_string(),
+            value,
             changed: false,
         }
     }
@@ -300,42 +309,26 @@ pub enum DisplayValue {
 }
 
 impl DisplayValue {
-    pub fn update(&self, value: &JsonValue) -> Self {
-        match (self, value) {
-            (&DisplayValue::Scalar(ref scalar), &JsonValue::Null) => {
-                DisplayValue::Scalar(scalar.update(&JsonValue::Null))
+    pub fn update(&self, value: &dyn Value) -> Self {
+        match (self, value.visit()) {
+            (DisplayValue::Scalar(old), ValueVariant::Scalar(s)) => {
+                DisplayValue::Scalar(old.update(s))
             }
-            (&DisplayValue::Scalar(ref scalar), &JsonValue::Short(ref val)) => {
-                DisplayValue::Scalar(scalar.update(&val))
+            (DisplayValue::Object(old), ValueVariant::Map(s)) => {
+                DisplayValue::Object(old.update(s))
             }
-            (&DisplayValue::Scalar(ref scalar), &JsonValue::String(ref val)) => {
-                DisplayValue::Scalar(scalar.update(&val))
+            (DisplayValue::Array(old), ValueVariant::Array(s)) => {
+                DisplayValue::Array(old.update(s))
             }
-            (&DisplayValue::Scalar(ref scalar), &JsonValue::Number(ref val)) => {
-                DisplayValue::Scalar(scalar.update(&val))
-            }
-            (&DisplayValue::Scalar(ref scalar), &JsonValue::Boolean(ref val)) => {
-                DisplayValue::Scalar(scalar.update(&val))
-            }
-            (&DisplayValue::Object(ref obj), &JsonValue::Object(ref val)) => {
-                DisplayValue::Object(obj.update(&val))
-            }
-            (&DisplayValue::Array(ref array), &JsonValue::Array(ref val)) => {
-                DisplayValue::Array(array.update(&val))
-            }
-            (_, val) => Self::from_json(val),
+            _ => Self::new(value),
         }
     }
 
-    pub fn from_json(value: &JsonValue) -> Self {
-        match value {
-            &JsonValue::Null => DisplayValue::Scalar(DisplayScalar::from_json(&JsonValue::Null)),
-            &JsonValue::Short(ref val) => DisplayValue::Scalar(DisplayScalar::from_json(&val)),
-            &JsonValue::String(ref val) => DisplayValue::Scalar(DisplayScalar::from_json(&val)),
-            &JsonValue::Number(ref val) => DisplayValue::Scalar(DisplayScalar::from_json(&val)),
-            &JsonValue::Boolean(ref val) => DisplayValue::Scalar(DisplayScalar::from_json(&val)),
-            &JsonValue::Object(ref val) => DisplayValue::Object(DisplayObject::from_json(&val)),
-            &JsonValue::Array(ref val) => DisplayValue::Array(DisplayArray::from_json(&val)),
+    pub fn new(value: &dyn Value) -> Self {
+        match value.visit() {
+            ValueVariant::Scalar(s) => DisplayValue::Scalar(DisplayScalar::new(s.to_owned())),
+            ValueVariant::Map(s) => DisplayValue::Object(DisplayObject::new(s)),
+            ValueVariant::Array(s) => DisplayValue::Array(DisplayArray::new(s)),
         }
     }
     pub fn draw<T: CursorTarget>(

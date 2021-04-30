@@ -17,7 +17,7 @@
 //!     let stdin = stdin();
 //!     let stdin = stdin.lock();
 //!
-//!     let mut json_viewer = JsonViewer::new(JsonValue::Null);
+//!     let mut json_viewer = JsonViewer::new(&JsonValue::Null);
 //!
 //!     let mut term = Terminal::new(stdout.lock()).unwrap();
 //!
@@ -37,20 +37,20 @@
 //!                 let mut object = Object::new();
 //!                 object.insert("foo", JsonValue::String("String!".to_owned()));
 //!                 object.insert("bar", JsonValue::Boolean(true));
-//!                 json_viewer.update(JsonValue::Object(object));
+//!                 json_viewer.update(&JsonValue::Object(object));
 //!             }))
 //!             .chain((Key::Char('n'), || {
 //!                 let mut object = Object::new();
 //!                 object.insert("foo", JsonValue::Number((27 * 37).into()));
 //!                 object.insert("bar", JsonValue::Boolean(true));
 //!                 // Notice that foo is highlighted when pressing 'n' after 's'!
-//!                 json_viewer.update(JsonValue::Object(object));
+//!                 json_viewer.update(&JsonValue::Object(object));
 //!             }));
 //!         // Put more application logic here...
 //!
 //!         {
 //!             let win = term.create_root_window();
-//!             json_viewer.draw(win, RenderingHints::default());
+//!             json_viewer.as_widget().draw(win, RenderingHints::default());
 //!         }
 //!         term.present();
 //!     }
@@ -76,7 +76,33 @@ pub mod json_ext {
     pub use json::{number::Number, object::Object, Array, JsonValue};
 }
 
-use json::JsonValue;
+impl Value for json_ext::JsonValue {
+    fn visit<'children>(&'children self) -> ValueVariant<'children> {
+        match self {
+            json_ext::JsonValue::Null => ValueVariant::Scalar("null".to_string()),
+            json_ext::JsonValue::Short(val) => ValueVariant::Scalar(val.to_string()),
+            json_ext::JsonValue::String(val) => ValueVariant::Scalar(val.to_string()),
+            json_ext::JsonValue::Number(val) => ValueVariant::Scalar(val.to_string()),
+            json_ext::JsonValue::Boolean(val) => ValueVariant::Scalar(val.to_string()),
+            json_ext::JsonValue::Object(val) => ValueVariant::Map(Box::new(
+                val.iter().map(|(k, v)| (k.to_owned(), v as &dyn Value)),
+            )),
+            json_ext::JsonValue::Array(val) => {
+                ValueVariant::Array(Box::new(val.iter().map(|v| v as &dyn Value)))
+            }
+        }
+    }
+}
+
+pub enum ValueVariant<'children> {
+    Scalar(String),
+    Array(Box<dyn Iterator<Item = &'children dyn Value> + 'children>),
+    Map(Box<dyn Iterator<Item = (String, &'children dyn Value)> + 'children>),
+}
+
+pub trait Value {
+    fn visit<'children>(&'children self) -> ValueVariant<'children>;
+}
 
 mod displayvalue;
 mod path;
@@ -105,9 +131,9 @@ impl JsonViewer {
     ///
     /// It follows that it is impossible to not have content. However, it *is* possible to show an
     /// empty String, so there is that.
-    pub fn new(value: impl Borrow<JsonValue>) -> Self {
+    pub fn new(value: &dyn Value) -> Self {
         let mut res = JsonViewer {
-            value: DisplayValue::from_json(value.borrow()),
+            value: DisplayValue::new(value.borrow()),
             active_element: Path::Scalar, //Will be fixed ...
         };
         res.fix_active_element_path(); //... here!
@@ -115,14 +141,14 @@ impl JsonViewer {
     }
 
     /// Set a new value to display and do not highlight any changes (in contrast to `update`).
-    pub fn reset(&mut self, value: impl Borrow<JsonValue>) {
-        self.value = DisplayValue::from_json(value.borrow());
+    pub fn reset(&mut self, value: &dyn Value) {
+        self.value = DisplayValue::new(value.borrow());
         self.fix_active_element_path();
     }
 
     /// Set a new value to display and highlight changes from the previous value (which will be
     /// shown until the next `update` or `reset`.
-    pub fn update(&mut self, value: impl Borrow<JsonValue>) {
+    pub fn update(&mut self, value: &dyn Value) {
         self.value = self.value.update(value.borrow());
         self.fix_active_element_path();
     }

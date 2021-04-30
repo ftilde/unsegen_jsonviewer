@@ -377,7 +377,7 @@ mod test {
     use json::JsonValue;
 
     fn aeq_first_path_in(val: JsonValue, expected: Path) {
-        let val = DisplayValue::from_json(&val);
+        let val = DisplayValue::new(&val);
         let result = first_path_in(&val);
         assert_eq!(result, expected);
     }
@@ -392,7 +392,7 @@ mod test {
     }
 
     fn aeq_last_path_in(val: JsonValue, expected: Path) {
-        let val = DisplayValue::from_json(&val);
+        let val = DisplayValue::new(&val);
         let result = last_path_in(&val);
         assert_eq!(result, expected);
     }
@@ -419,7 +419,7 @@ mod test {
         expected_after: P,
     ) {
         let expected_after = expected_after.into();
-        let mut val = DisplayValue::from_json(&val);
+        let mut val = DisplayValue::new(&val);
         setup(&mut val);
         let real_after = before.find_next_path(&val);
         assert_eq!(real_after, expected_after);
@@ -531,7 +531,7 @@ mod test {
         expected_after: P,
     ) {
         let expected_after = expected_after.into();
-        let mut val = DisplayValue::from_json(&val);
+        let mut val = DisplayValue::new(&val);
         setup(&mut val);
         let real_after = before.find_previous_path(&val);
         assert_eq!(real_after, expected_after);
@@ -642,7 +642,7 @@ mod test {
         action_valid: F,
         should_error: bool,
     ) {
-        let mut val = DisplayValue::from_json(&val);
+        let mut val = DisplayValue::new(&val);
         assert!(should_error == path.find_and_act_on_element(&mut val).is_err());
         assert!(action_valid(&val));
     }
@@ -733,7 +733,7 @@ mod test {
         before: Path,
         expected_after: Path,
     ) {
-        let mut val = DisplayValue::from_json(&val);
+        let mut val = DisplayValue::new(&val);
         setup(&mut val);
         let real_after = before.fix_path_for_value(&val);
         assert_eq!(real_after, expected_after);

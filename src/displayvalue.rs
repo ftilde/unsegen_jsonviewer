@@ -169,7 +169,7 @@ impl DisplayArray {
         let num_extended = min(self.num_extended, values.len());
         let length_changed = self.values.len() != values.len();
         DisplayArray {
-            values: Vec::new(),
+            values,
             extended: self.extended,
             num_extended,
             length_changed,

@@ -200,9 +200,8 @@ impl DisplayArray {
         use std::fmt::Write;
 
         if self.extended {
-            write!(cursor, " [").unwrap();
+            write!(cursor, "[ ").unwrap();
             {
-                write!(cursor, " ").unwrap();
                 let mut cursor = cursor.save().style_modifier();
                 if let Some(&ArrayPath::Toggle) = path {
                     cursor.apply_style_modifier(info.get_focused_style());

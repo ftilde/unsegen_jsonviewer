@@ -319,7 +319,18 @@ impl DisplayValue {
             (DisplayValue::Array(old), ValueVariant::Array(s)) => {
                 DisplayValue::Array(old.update(s))
             }
-            _ => Self::new(value),
+            _ => {
+                // The type of the value has changed
+                let mut val = Self::new(value);
+                match &mut val {
+                    DisplayValue::Scalar(v) => {
+                        v.changed = true;
+                    }
+                    DisplayValue::Object(_) | DisplayValue::Array(_) => { /*TODO: Propagate changed state further*/
+                    }
+                }
+                val
+            }
         }
     }
 

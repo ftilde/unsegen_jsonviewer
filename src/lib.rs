@@ -84,11 +84,12 @@ impl Value for json_ext::JsonValue {
             json_ext::JsonValue::String(val) => ValueVariant::Scalar(val.to_string()),
             json_ext::JsonValue::Number(val) => ValueVariant::Scalar(val.to_string()),
             json_ext::JsonValue::Boolean(val) => ValueVariant::Scalar(val.to_string()),
-            json_ext::JsonValue::Object(val) => ValueVariant::Map(Box::new(
-                val.iter().map(|(k, v)| (k.to_owned(), v as &dyn Value)),
-            )),
+            json_ext::JsonValue::Object(val) => ValueVariant::Map(
+                None,
+                Box::new(val.iter().map(|(k, v)| (k.to_owned(), v as &dyn Value))),
+            ),
             json_ext::JsonValue::Array(val) => {
-                ValueVariant::Array(Box::new(val.iter().map(|v| v as &dyn Value)))
+                ValueVariant::Array(None, Box::new(val.iter().map(|v| v as &dyn Value)))
             }
         }
     }
@@ -96,8 +97,14 @@ impl Value for json_ext::JsonValue {
 
 pub enum ValueVariant<'children> {
     Scalar(String),
-    Array(Box<dyn Iterator<Item = &'children dyn Value> + 'children>),
-    Map(Box<dyn Iterator<Item = (String, &'children dyn Value)> + 'children>),
+    Array(
+        Option<String>,
+        Box<dyn Iterator<Item = &'children dyn Value> + 'children>,
+    ),
+    Map(
+        Option<String>,
+        Box<dyn Iterator<Item = (String, &'children dyn Value)> + 'children>,
+    ),
 }
 
 pub trait Value {

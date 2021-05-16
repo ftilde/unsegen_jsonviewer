@@ -27,8 +27,10 @@ impl RenderingInfo {
 }
 
 pub struct DisplayObject {
+    description: Option<String>,
     pub members: BTreeMap<String, DisplayValue>,
     pub extended: bool,
+    description_changed: bool,
 }
 
 const OPEN_SYMBOL: &'static str = "[+]";
@@ -41,11 +43,15 @@ impl DisplayObject {
 
     fn update<'children>(
         &self,
+        description: Option<String>,
         obj: Box<dyn Iterator<Item = (String, &'children dyn Value)> + 'children>,
     ) -> Self {
+        let description_changed = self.description != description;
         let mut result = DisplayObject {
+            description,
             members: BTreeMap::new(),
             extended: self.extended,
+            description_changed,
         };
         for (key, value) in obj.into_iter() {
             let new_value = if let Some(old_val) = self.members.get(&key) {
@@ -59,11 +65,14 @@ impl DisplayObject {
     }
 
     fn new<'children>(
+        description: Option<String>,
         obj: Box<dyn Iterator<Item = (String, &'children dyn Value)> + 'children>,
     ) -> Self {
         let mut result = DisplayObject {
+            description,
             members: BTreeMap::new(),
             extended: true,
+            description_changed: false,
         };
         for (key, value) in obj.into_iter() {
             result
@@ -81,6 +90,15 @@ impl DisplayObject {
         indentation: Width,
     ) {
         use std::fmt::Write;
+        {
+            let mut cursor = cursor.save().style_modifier();
+            if self.description_changed {
+                cursor.apply_style_modifier(info.item_changed_style);
+            }
+            if let Some(description) = &self.description {
+                write!(cursor, "{} ", description).unwrap();
+            }
+        }
         if self.extended {
             {
                 write!(cursor, "{{ ").unwrap();
@@ -126,10 +144,12 @@ impl DisplayObject {
 }
 
 pub struct DisplayArray {
+    description: Option<String>,
     pub values: Vec<DisplayValue>,
     pub extended: bool,
     pub num_extended: usize,
     pub length_changed: bool,
+    description_changed: bool,
 }
 impl DisplayArray {
     pub fn toggle_visibility(&mut self) {
@@ -153,6 +173,7 @@ impl DisplayArray {
 
     fn update<'children>(
         &self,
+        description: Option<String>,
         values: Box<dyn Iterator<Item = &'children dyn Value> + 'children>,
     ) -> Self {
         let mut old_vals = self.values.iter();
@@ -168,25 +189,33 @@ impl DisplayArray {
             .collect::<Vec<_>>();
         let num_extended = min(self.num_extended, values.len());
         let length_changed = self.values.len() != values.len();
+        let description_changed = self.description != description;
         DisplayArray {
+            description,
             values,
             extended: self.extended,
             num_extended,
             length_changed,
+            description_changed,
         }
     }
 
-    fn new<'children>(values: Box<dyn Iterator<Item = &'children dyn Value> + 'children>) -> Self {
+    fn new<'children>(
+        description: Option<String>,
+        values: Box<dyn Iterator<Item = &'children dyn Value> + 'children>,
+    ) -> Self {
         let values = values
             .into_iter()
             .map(DisplayValue::new)
             .collect::<Vec<_>>();
         let num_extended = min(3, values.len());
         DisplayArray {
+            description,
             values,
             extended: true,
             num_extended,
             length_changed: false,
+            description_changed: false,
         }
     }
 
@@ -199,6 +228,15 @@ impl DisplayArray {
     ) {
         use std::fmt::Write;
 
+        {
+            let mut cursor = cursor.save().style_modifier();
+            if self.description_changed {
+                cursor.apply_style_modifier(info.item_changed_style);
+            }
+            if let Some(description) = &self.description {
+                write!(cursor, "{} ", description).unwrap();
+            }
+        }
         if self.extended {
             write!(cursor, "[ ").unwrap();
             {
@@ -313,11 +351,11 @@ impl DisplayValue {
             (DisplayValue::Scalar(old), ValueVariant::Scalar(s)) => {
                 DisplayValue::Scalar(old.update(s))
             }
-            (DisplayValue::Object(old), ValueVariant::Map(s)) => {
-                DisplayValue::Object(old.update(s))
+            (DisplayValue::Object(old), ValueVariant::Map(d, s)) => {
+                DisplayValue::Object(old.update(d, s))
             }
-            (DisplayValue::Array(old), ValueVariant::Array(s)) => {
-                DisplayValue::Array(old.update(s))
+            (DisplayValue::Array(old), ValueVariant::Array(d, s)) => {
+                DisplayValue::Array(old.update(d, s))
             }
             _ => {
                 // The type of the value has changed
@@ -337,8 +375,8 @@ impl DisplayValue {
     pub fn new(value: &dyn Value) -> Self {
         match value.visit() {
             ValueVariant::Scalar(s) => DisplayValue::Scalar(DisplayScalar::new(s.to_owned())),
-            ValueVariant::Map(s) => DisplayValue::Object(DisplayObject::new(s)),
-            ValueVariant::Array(s) => DisplayValue::Array(DisplayArray::new(s)),
+            ValueVariant::Map(d, s) => DisplayValue::Object(DisplayObject::new(d, s)),
+            ValueVariant::Array(d, s) => DisplayValue::Array(DisplayArray::new(d, s)),
         }
     }
     pub fn draw<T: CursorTarget>(

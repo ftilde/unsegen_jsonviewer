@@ -41,10 +41,10 @@ impl DisplayObject {
         self.extended ^= true;
     }
 
-    fn update<'children>(
+    fn update<'s, V: Value>(
         &self,
         description: Option<String>,
-        obj: Box<dyn Iterator<Item = (String, &'children dyn Value)> + 'children>,
+        obj: Box<dyn Iterator<Item = (String, V)> + 's>,
     ) -> Self {
         let description_changed = self.description != description;
         let mut result = DisplayObject {
@@ -64,9 +64,9 @@ impl DisplayObject {
         result
     }
 
-    fn new<'children>(
+    fn new<'s, V: Value>(
         description: Option<String>,
-        obj: Box<dyn Iterator<Item = (String, &'children dyn Value)> + 'children>,
+        obj: Box<dyn Iterator<Item = (String, V)> + 's>,
     ) -> Self {
         let mut result = DisplayObject {
             description,
@@ -171,10 +171,10 @@ impl DisplayArray {
         self.num_extended > 0
     }
 
-    fn update<'children>(
+    fn update<'s, V: Value>(
         &self,
         description: Option<String>,
-        values: Box<dyn Iterator<Item = &'children dyn Value> + 'children>,
+        values: Box<dyn Iterator<Item = V> + 's>,
     ) -> Self {
         let mut old_vals = self.values.iter();
         let values = values
@@ -200,9 +200,9 @@ impl DisplayArray {
         }
     }
 
-    fn new<'children>(
+    fn new<'s, V: Value>(
         description: Option<String>,
-        values: Box<dyn Iterator<Item = &'children dyn Value> + 'children>,
+        values: Box<dyn Iterator<Item = V> + 's>,
     ) -> Self {
         let values = values
             .into_iter()
@@ -346,8 +346,8 @@ pub enum DisplayValue {
 }
 
 impl DisplayValue {
-    pub fn update(&self, value: &dyn Value) -> Self {
-        match (self, value.visit()) {
+    pub fn update(&self, value: impl Value) -> Self {
+        match (self, value.clone().visit()) {
             (DisplayValue::Scalar(old), ValueVariant::Scalar(s)) => {
                 DisplayValue::Scalar(old.update(s))
             }
@@ -372,7 +372,7 @@ impl DisplayValue {
         }
     }
 
-    pub fn new(value: &dyn Value) -> Self {
+    pub fn new(value: impl Value) -> Self {
         match value.visit() {
             ValueVariant::Scalar(s) => DisplayValue::Scalar(DisplayScalar::new(s.to_owned())),
             ValueVariant::Map(d, s) => DisplayValue::Object(DisplayObject::new(d, s)),

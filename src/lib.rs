@@ -76,39 +76,30 @@ pub mod json_ext {
     pub use json::{number::Number, object::Object, Array, JsonValue};
 }
 
-impl Value for json_ext::JsonValue {
-    fn visit<'children>(&'children self) -> ValueVariant<'children> {
+impl Value for &json_ext::JsonValue {
+    fn visit<'s>(self) -> ValueVariant<'s, Self> {
         match self {
             json_ext::JsonValue::Null => ValueVariant::Scalar("null".to_string()),
             json_ext::JsonValue::Short(val) => ValueVariant::Scalar(val.to_string()),
             json_ext::JsonValue::String(val) => ValueVariant::Scalar(val.to_string()),
             json_ext::JsonValue::Number(val) => ValueVariant::Scalar(val.to_string()),
             json_ext::JsonValue::Boolean(val) => ValueVariant::Scalar(val.to_string()),
-            json_ext::JsonValue::Object(val) => ValueVariant::Map(
-                None,
-                Box::new(val.iter().map(|(k, v)| (k.to_owned(), v as &dyn Value))),
-            ),
-            json_ext::JsonValue::Array(val) => {
-                ValueVariant::Array(None, Box::new(val.iter().map(|v| v as &dyn Value)))
+            json_ext::JsonValue::Object(val) => {
+                ValueVariant::Map(None, Box::new(val.iter().map(|(k, v)| (k.to_owned(), v))))
             }
+            json_ext::JsonValue::Array(val) => ValueVariant::Array(None, Box::new(val.iter())),
         }
     }
 }
 
-pub enum ValueVariant<'children> {
+pub enum ValueVariant<'s, V: Value + 's> {
     Scalar(String),
-    Array(
-        Option<String>,
-        Box<dyn Iterator<Item = &'children dyn Value> + 'children>,
-    ),
-    Map(
-        Option<String>,
-        Box<dyn Iterator<Item = (String, &'children dyn Value)> + 'children>,
-    ),
+    Array(Option<String>, Box<dyn Iterator<Item = V> + 's>),
+    Map(Option<String>, Box<dyn Iterator<Item = (String, V)> + 's>),
 }
 
-pub trait Value {
-    fn visit<'children>(&'children self) -> ValueVariant<'children>;
+pub trait Value: Sized + Clone {
+    fn visit<'s>(self) -> ValueVariant<'s, Self>;
 }
 
 mod displayvalue;
@@ -116,7 +107,6 @@ mod path;
 
 use self::displayvalue::*;
 use self::path::*;
-use std::borrow::Borrow;
 
 /// A widget for viewing `json` data.
 ///
@@ -138,9 +128,9 @@ impl JsonViewer {
     ///
     /// It follows that it is impossible to not have content. However, it *is* possible to show an
     /// empty String, so there is that.
-    pub fn new(value: &dyn Value) -> Self {
+    pub fn new(value: impl Value) -> Self {
         let mut res = JsonViewer {
-            value: DisplayValue::new(value.borrow()),
+            value: DisplayValue::new(value),
             active_element: Path::Scalar, //Will be fixed ...
         };
         res.fix_active_element_path(); //... here!
@@ -148,15 +138,15 @@ impl JsonViewer {
     }
 
     /// Set a new value to display and do not highlight any changes (in contrast to `update`).
-    pub fn reset(&mut self, value: &dyn Value) {
-        self.value = DisplayValue::new(value.borrow());
+    pub fn reset(&mut self, value: impl Value) {
+        self.value = DisplayValue::new(value);
         self.fix_active_element_path();
     }
 
     /// Set a new value to display and highlight changes from the previous value (which will be
     /// shown until the next `update` or `reset`.
-    pub fn update(&mut self, value: &dyn Value) {
-        self.value = self.value.update(value.borrow());
+    pub fn update(&mut self, value: impl Value) {
+        self.value = self.value.update(value);
         self.fix_active_element_path();
     }
 

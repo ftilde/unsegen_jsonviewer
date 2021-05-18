@@ -92,6 +92,12 @@ impl Value for &json_ext::JsonValue {
     }
 }
 
+impl Value for &str {
+    fn visit<'s>(self) -> ValueVariant<'s, Self> {
+        ValueVariant::Scalar(self.to_owned())
+    }
+}
+
 pub enum ValueVariant<'s, V: Value + 's> {
     Scalar(String),
     Array(Option<String>, Box<dyn Iterator<Item = V> + 's>),

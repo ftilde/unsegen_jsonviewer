@@ -12,7 +12,7 @@ At the moment it only supports [`json`](https://crates.io/crates/json) values.
 `unsegen_jsonviewer` is [available on crates.io](https://crates.io/crates/unsegen_jsonviewer). You can install it by adding this line to your `Cargo.toml`:
 
 ```toml
-unsegen_jsonviewer = "0.2.0"
+unsegen_jsonviewer = "0.3.0"
 ```
 
 ## Screenshots

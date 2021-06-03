@@ -1,6 +1,6 @@
 [package]
 name = "unsegen_jsonviewer"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["ftilde <ftilde@protonmail.com>"]
 
 description = "An unsegen widget for viewing structured data (json)"
@@ -12,4 +12,4 @@ keywords = ["terminal", "tui", "json"]
 
 [dependencies]
 json = "0.11"
-unsegen = "0.2"
+unsegen = "0.3.0"
